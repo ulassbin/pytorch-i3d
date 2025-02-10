@@ -30,20 +30,22 @@ import numpy as np
 from pytorch_i3d import InceptionI3d
 
 from charades_dataset_full import Charades as Dataset
+from folder_dataset_full import FolderDataset
 
 
 def run(max_steps=64e3, mode='rgb', root='/ssd2/charades/Charades_v1_rgb', split='charades/charades.json', batch_size=1, load_model='', save_dir=''):
     # setup dataset
     test_transforms = transforms.Compose([videotransforms.CenterCrop(224)])
-
-    dataset = Dataset(split, 'training', root, mode, test_transforms, num=-1, save_dir=save_dir)
+    
+    #dataset = Dataset(split, 'training', root, mode, test_transforms, num=-1, save_dir=save_dir)
+    dataset = FolderDataset(root, 'rgb', test_transforms, save_dir=save_dir)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    
+    #val_dataset = Dataset(split, 'testing', root, mode, test_transforms, num=-1, save_dir=save_dir)
+    #val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)    
 
-    val_dataset = Dataset(split, 'testing', root, mode, test_transforms, num=-1, save_dir=save_dir)
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)    
-
-    dataloaders = {'train': dataloader, 'val': val_dataloader}
-    datasets = {'train': dataset, 'val': val_dataset}
+    dataloaders = {'train': dataloader}#, 'val': val_dataloader}
+    datasets = {'train': dataset}#, 'val': val_dataset}
 
     
     # setup the model

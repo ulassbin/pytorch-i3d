@@ -100,3 +100,30 @@ class RandomHorizontalFlip(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(p={})'.format(self.p)
+
+# if name is main
+if __name__ == '__main__':
+    # take vid input as arg and transform it
+    import cv2
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import os
+    path = 'data/UCF101/v_Archery_g01_c01.avi'
+    cap = cv2.VideoCapture(path)
+    frames = []
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frames.append(frame)
+    cap.release()
+    frames = np.array(frames)
+    print(frames.shape)
+    # apply transforms
+    transform = RandomCrop(112)
+    frames = transform(frames)
+    print(frames.shape)
+    transform = CenterCrop(112)
+    frames = transform(frames)
+    print(frames.shape)
+    

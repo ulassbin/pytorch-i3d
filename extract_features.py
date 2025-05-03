@@ -28,7 +28,7 @@ def load_frame(frame_file, resize=False):
     assert(data.size[0] == 340)
 
     if resize:
-        data = data.resize((224, 224), Image.ANTIALIAS)
+        data = data.resize((224, 224), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
 
     data = np.array(data)
     data = data.astype(float)
@@ -49,7 +49,7 @@ def load_zipframe(zipdata, name, resize=False):
     assert(data.size[0] == 340)
 
     if resize:
-        data = data.resize((224, 224), Image.ANTIALIAS)
+        data = data.resize((224, 224), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
 
     data = np.array(data)
     data = data.astype(float)

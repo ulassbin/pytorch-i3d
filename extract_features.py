@@ -24,8 +24,8 @@ def load_frame(frame_file, resize=False):
 
     data = Image.open(frame_file)
 
-    assert(data.size[1] == 256)
-    assert(data.size[0] == 340)
+    #assert(data.size[1] == 256)
+    #assert(data.size[0] == 340)
 
     if resize:
         data = data.resize((224, 224), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
@@ -162,7 +162,7 @@ def load_zipflow_batch(flow_x_zipdata, flow_y_zipdata,
 
 
 def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
-    input_dir='', output_dir='', batch_size=40, usezip=False):
+    input_dir='', output_dir='', batch_size=40, usezip=False, save_npz=False):
 
     chunk_size = 16
 
@@ -180,7 +180,8 @@ def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
     i3d.cuda()
 
     i3d.train(False)  # Set model to evaluate mode
-
+    
+    print("Run started!")
     def forward_batch(b_data):
         b_data = b_data.transpose([0, 4, 1, 2, 3])
         b_data = torch.from_numpy(b_data)   # b,c,t,h,w  # 40x3x16x224x224
@@ -192,10 +193,10 @@ def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
         return b_features
 
 
-    video_names = [i for i in os.listdir(input_dir) if i[0] == 'v']
+    video_names = [i for i in os.listdir(input_dir)] # had if  i[0] 'v' smth.
 
     for video_name in video_names:
-
+        print('Iterating video ', video_name)
         save_file = '{}-{}.npz'.format(video_name, mode)
         if save_file in os.listdir(output_dir):
             continue
@@ -206,13 +207,14 @@ def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
         if mode == 'rgb':
             if usezip:
                 rgb_zipdata = zipfile.ZipFile(os.path.join(frames_dir, 'img.zip'), 'r')
-                rgb_files = [i for i in rgb_zipdata.namelist() if i.startswith('img')]
+                #rgb_files = [i for i in rgb_zipdata.namelist() if i.startswith('img')]
+                rgb_files = sorted([i for i in os.listdir(frames_dir) if i.lower().endswith('.jpg')])
             else:
-                rgb_files = [i for i in os.listdir(frames_dir) if i.startswith('img')]
-
+                #rgb_files = [i for i in os.listdir(frames_dir) if i.startswith('img')]
+                rgb_files = sorted([i for i in os.listdir(frames_dir) if i.lower().endswith('.jpg')])
             rgb_files.sort()
             frame_cnt = len(rgb_files)
-
+            print("Rgb frame count for dir {} is {}".format(frames_dir, frame_cnt))
         else:
             if usezip:
                 flow_x_zipdata = zipfile.ZipFile(os.path.join(frames_dir, 'flow_x.zip'), 'r')
@@ -234,7 +236,13 @@ def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
         # clipped_length = (frame_cnt // chunk_size) * chunk_size   # Cut frames
 
         # Cut frames
-        assert(frame_cnt > chunk_size)
+        #assert(frame_cnt > chunk_size)
+        if frame_cnt < chunk_size:
+           last_frame = rgb_files[-1]
+           padding = [last_frame] * (chunk_size - frame_cnt)
+           rgb_files += padding
+           frame_cnt = len(rgb_files)
+
         clipped_length = frame_cnt - chunk_size
         clipped_length = (clipped_length // frequency) * frequency  # The start of last chunk
 
@@ -301,10 +309,15 @@ def run(mode='rgb', load_model='', sample_mode='oversample', frequency=16,
         full_features = [np.expand_dims(i, axis=0) for i in full_features]
         full_features = np.concatenate(full_features, axis=0)
 
-        np.savez(os.path.join(output_dir, save_file), 
-            feature=full_features,
-            frame_cnt=frame_cnt,
-            video_name=video_name)
+        if(save_npz):
+            np.savez(os.path.join(output_dir, save_file), 
+                feature=full_features,
+                frame_cnt=frame_cnt,
+                video_name=video_name)
+        else:
+            squeezed_features = np.squeeze(full_features, axis=0)  # removes the first dimension if it's 1
+            np.save(os.path.join(output_dir, '{}.npy'.format(video_name)), squeezed_features)
+
 
         print('{} done: {} / {}, {}'.format(
             video_name, frame_cnt, clipped_length, full_features.shape))
@@ -324,6 +337,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--usezip', dest='usezip', action='store_true')
     parser.add_argument('--no-usezip', dest='usezip', action='store_false')
+    parser.add_argument('--save_npz', type=bool, default=False)
     parser.set_defaults(usezip=True)
 
     args = parser.parse_args()
@@ -335,4 +349,5 @@ if __name__ == '__main__':
         output_dir=args.output_dir,
         batch_size=args.batch_size,
         frequency=args.frequency,
-        usezip=args.usezip)
+        usezip=args.usezip,
+        save_npz=args.save_npz)
